@@ -1,9 +1,9 @@
 import torch
 import torch.nn as nn
 
-class PatchMerging(nn.Module):
+class EDF(nn.Module):
     def __init__(self, in_channels):
-        super(PatchMerging, self).__init__()
+        super(EDF, self).__init__()
         self.reduction = nn.Linear(4 * in_channels, 2 * in_channels)
 
     def forward(self, x):
@@ -56,7 +56,7 @@ class CNNLSTMGAM(nn.Module):
             nn.Conv2d(in_channels=6, out_channels=64, kernel_size=1),  # 初始卷积层
             nn.BatchNorm2d(64),  # 批归一化
             nn.ReLU(),
-            PatchMerging(64),  # Patch合并层
+            EDF(64),
             nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(256),
             nn.ReLU(),

@@ -12,9 +12,9 @@ class SwinExtractor(nn.Module):
         return self.model(x)
 
 
-class PatchMerging(nn.Module):
+class EDF(nn.Module):
     def __init__(self, in_channels):
-        super(PatchMerging, self).__init__()
+        super(EDF, self).__init__()
         self.reduction = nn.Linear(4 * in_channels, 2 * in_channels)
 
     def forward(self, x):
@@ -37,7 +37,7 @@ class SwinCNN(nn.Module):
             nn.Conv2d(in_channels=2, out_channels=128, kernel_size=1),
             nn.BatchNorm2d(128),
             nn.ReLU(),
-            PatchMerging(128),
+            EDF(128),
             nn.Conv2d(in_channels=256, out_channels=512, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(512),
             nn.ReLU(),
