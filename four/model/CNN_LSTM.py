@@ -13,9 +13,9 @@ class EDF(nn.Module):
         x = self.reduction(x)
         return x.permute(0, 3, 1, 2).contiguous()
 
-class CNNLSTM(nn.Module):
+class CNNLSTM1(nn.Module):
     def __init__(self, feature_dim=1024, num_classes=1):
-        super(CNNLSTM, self).__init__()
+        super(CNNLSTM1, self).__init__()
 
         # Preprocessing layer (CNN)
         self.preprocess = nn.Sequential(
