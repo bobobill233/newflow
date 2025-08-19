@@ -13,7 +13,7 @@ import numpy as np
 def parse_args():
     parser = argparse.ArgumentParser(description="Training script for multiple models")
     parser.add_argument('--model', type=str, required=True,
-                        choices=['CNN_LSTM_GAM', 'shijie', 'Swin_CNN', 'Swin_CNN_LSTM', 'Swin_CNN_LSTM_GAM',
+                        choices=['CNN_LSTM_GAM', 'Swin_CNN_LSTM_GAM', 'Swin_CNN', 'Swin_CNN_LSTM', 'SCLA_CEN',
                                  'Swin_CNN_LSTM_SelfAttention'],
                         help="Choose which model to train")
     parser.add_argument('--batch_size_train', type=int, default=4, help="Batch size for training")

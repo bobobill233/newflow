@@ -25,7 +25,7 @@ class EDF(nn.Module):
 
 
 class GAM(nn.Module):
-    def __init__(self, in_channels, reduction_ratio=8):
+    def __init__(self, in_channels, reduction_ratio=4):
         super(GAM, self).__init__()
 
         # 通道注意力部分
@@ -57,18 +57,19 @@ class GAM(nn.Module):
         return x
 
 
-class SwinCNNLSTMSelfAttention(nn.Module):
+class SwinCNNLSTMGAM(nn.Module):
     def __init__(self, feature_dim=1024, num_classes=1):
-        super(SwinCNNLSTMSelfAttention, self).__init__()
+        super(SwinCNNLSTMGAM, self).__init__()
+
         # 初始化 SwinExtractor
         self.swin_extractor = SwinExtractor()
+
         # Preprocessing layer
         self.preprocess = nn.Sequential(
             nn.Conv2d(in_channels=2, out_channels=128, kernel_size=1),
             nn.BatchNorm2d(128),  # Add BN layer
             nn.ReLU(),
             EDF(128),
-            # nn.MaxPool2d(kernel_size=2, stride=2),
             nn.Conv2d(in_channels=256, out_channels=512, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(512),  # Add BN layer
             nn.ReLU(),
@@ -76,74 +77,53 @@ class SwinCNNLSTMSelfAttention(nn.Module):
         )
 
         # Add GAM
-        # self.gam1 = GAM(in_channels=512)
+        self.gam1 = GAM(in_channels=512)
 
         # LSTM layer
         self.lstm = nn.LSTM(input_size=512 * 8 * 8, hidden_size=1024, num_layers=3, batch_first=True, dropout=0.25)
 
-        # self.gam2 = GAM(in_channels=1024)
-
-        # Attention mechanism
-        self.attention = nn.MultiheadAttention(embed_dim=1024, num_heads=8, batch_first=True)
+        self.gam2 = GAM(in_channels=1024)
 
         # Regressor layer
         self.regressor = nn.Sequential(
             nn.Dropout(0.5),  # Add Dropout layer before the final regressor
-            nn.Linear(1024, num_classes) # Final linear layer reducing from 128 to 1
+            nn.Linear(1024, num_classes)  # Final linear layer reducing from 1024 to num_classes
         )
 
     def forward(self, gasf_tensor, mtf_tensor):
-        # Reshape SwinV2 output to [batch_size, channels, height, width]
-
+        # 使用 SwinExtractor 对输入进行特征提取
         gasf_features = self.swin_extractor(gasf_tensor)
         mtf_features = self.swin_extractor(mtf_tensor)
 
+        # 重新调整特征维度
         batch_size, num_features = gasf_features.shape
         gasf_features = gasf_features.view(batch_size, num_features // (32 * 32), 32, 32)
         mtf_features = mtf_features.view(batch_size, num_features // (32 * 32), 32, 32)
 
-        # print(f'GASF features shape after reshape: {gasf_features}')
-        # print(f'MTF features shape after reshape: {mtf_features}')
-
-        # Feature fusion
+        # 特征融合
         fused_features = torch.cat((gasf_features, mtf_features), dim=1)
-        # print(f'Fused features shape: {fused_features.shape}')
 
-        # Preprocessing layer
+        # 预处理
         x = self.preprocess(fused_features)
-        # print(f'Shape after preprocessing: {x}')
 
-        # # CNN layer with Patch Merging
-        # x = self.cnn(x)
-        # # print(f'Shape after CNN: {x.shape}')
+        # 应用 GAM
+        x = self.gam1(x)
 
-        # Apply GAM
-        # x = self.gam1(x)
-        # print(f'Shape after GAM: {x.shape}')
-
-        # Reshape x to fit LSTM input
+        # 调整为 LSTM 输入
         batch_size = x.size(0)
         x = x.view(batch_size, -1, 512 * 8 * 8)
-        # print(f'Shape after reshaping for LSTM: {x.shape}')
 
-        # LSTM layer
+        # LSTM 层
         lstm_out, _ = self.lstm(x)
-        # print(f'Shape after LSTM: {lstm_out}')
 
-        # Apply second GAM
+        # 应用第二个 GAM
         lstm_out = lstm_out.view(batch_size, 1, -1, 1024).permute(0, 3, 1, 2)
-        # lstm_out = self.gam2(lstm_out)
+        lstm_out = self.gam2(lstm_out)
         lstm_out = lstm_out.view(batch_size, -1, 1024)
 
-        # Take the output of the last time step
+        # 取最后一个时间步的输出
         final_output = lstm_out[:, -1, :]
 
-        # Attention mechanism
-        attn_output, _ = self.attention(lstm_out, lstm_out, lstm_out)
-        attn_output = attn_output[:, -1, :]  # Take the output of the last time step
-        # print(f'Shape after Attention: {attn_output}')
-
-        # Regressor layer
+        # Regressor 层
         out = self.regressor(final_output)
-        # print(f'Shape after regressor: {out}')
         return out
